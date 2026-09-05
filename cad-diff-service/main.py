@@ -11,7 +11,8 @@ UPLOAD_DIR = "temp_uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 def save_temp(file: UploadFile) -> str:
-    path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_{file.filename}")
+    safe_filename = os.path.basename(file.filename)  # strips any path components
+    path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}_{safe_filename}")
     with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
     return path
