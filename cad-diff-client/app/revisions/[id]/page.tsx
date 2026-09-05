@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Link from "next/link";
 
 type ChangeType = "added" | "removed" | "modified";
 
@@ -156,17 +157,29 @@ export default function RevisionResultsPage() {
     };
   }, [id]);
 
+    const modeChanges = useMemo(() => {
+    const all = revision?.changes ?? [];
+    if (viewMode === "easy") return all;
+
+    return all.flatMap((c) => {
+      if (c.type !== "modified") return [c];
+      return [
+        { ...c, type: "removed" as const, after: null },
+        { ...c, type: "added" as const, before: null },
+      ];
+    });
+  }, [revision, viewMode]);
+
   const counts = useMemo(() => {
     const base = { added: 0, removed: 0, modified: 0 };
-    revision?.changes?.forEach((c) => {
+    modeChanges.forEach((c) => {
       base[c.type] += 1;
     });
     return base;
-  }, [revision]);
+  }, [modeChanges]);
 
-  const filteredChanges = useMemo(() => {
-    if (!revision?.changes) return [];
-    return revision.changes.filter((c) => {
+  const displayChanges = useMemo(() => {
+    return modeChanges.filter((c) => {
       if (filter !== "all" && c.type !== filter) return false;
       if (query.trim()) {
         const q = query.trim().toLowerCase();
@@ -175,20 +188,8 @@ export default function RevisionResultsPage() {
       }
       return true;
     });
-  }, [revision, filter, query]);
+  }, [modeChanges, filter, query]);
 
-  // Technical mode: split each "modified" entry back into its raw removed + added pair
-  const displayChanges = useMemo(() => {
-    if (viewMode === "easy") return filteredChanges;
-
-    return filteredChanges.flatMap((c) => {
-      if (c.type !== "modified") return [c];
-      return [
-        { ...c, type: "removed" as const, after: null },
-        { ...c, type: "added" as const, before: null },
-      ];
-    });
-  }, [filteredChanges, viewMode]);
 
   if (loading) {
     return (
@@ -228,7 +229,15 @@ export default function RevisionResultsPage() {
               <p className="font-mono text-[11px] uppercase tracking-wide text-[#8a8f88]">Rev {revision.id}</p>
               <h1 className="mt-0.5 text-[22px] font-semibold tracking-tight">{revision.project_id}</h1>
             </div>
-            <StatusBadge status={revision.status} />
+            <div className="flex items-center gap-3">
+              <StatusBadge status={revision.status} />
+              <Link
+                href="/"
+                className="rounded-full border border-[#d8dbd6] bg-white px-3 py-1 text-xs font-medium text-[#5b6159] hover:border-[#b8bcb4]"
+              >
+                + New comparison
+              </Link>
+            </div>
           </div>
 
           <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#eceae3] pt-4 sm:grid-cols-4">

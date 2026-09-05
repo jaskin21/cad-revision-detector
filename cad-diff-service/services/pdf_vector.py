@@ -1,4 +1,11 @@
 import fitz  # pymupdf
+import os
+import uuid
+import io
+from PIL import Image
+
+CROP_DIR = "temp_uploads/crops"
+os.makedirs(CROP_DIR, exist_ok=True)
 
 
 def _extract_page_content(doc) -> dict:
@@ -42,6 +49,28 @@ def _bbox_distance(bbox1, bbox2):
 def _bbox_to_location(bbox):
     x0, y0, x1, y1 = bbox
     return {"x": (x0 + x1) / 2, "y": (y0 + y1) / 2}
+
+
+def _render_page_image(doc, dpi=150):
+    page = doc[0]
+    zoom = dpi / 72
+    mat = fitz.Matrix(zoom, zoom)
+    pix = page.get_pixmap(matrix=mat)
+    img = Image.open(io.BytesIO(pix.tobytes("png")))
+    return img, zoom
+
+
+def _save_pdf_crop(img, bbox, zoom, pad_px=40):
+    x0, y0, x1, y1 = bbox
+    px0 = max(int(x0 * zoom) - pad_px, 0)
+    py0 = max(int(y0 * zoom) - pad_px, 0)
+    px1 = min(int(x1 * zoom) + pad_px, img.width)
+    py1 = min(int(y1 * zoom) + pad_px, img.height)
+    crop = img.crop((px0, py0, px1, py1))
+    crop_id = uuid.uuid4().hex[:8]
+    crop_path = os.path.join(CROP_DIR, f"{crop_id}.png")
+    crop.save(crop_path)
+    return crop_path
 
 
 def diff_pdf_vector(path_a: str, path_b: str):
@@ -108,6 +137,15 @@ def diff_pdf_vector(path_a: str, path_b: str):
             "after": a_data,
             "region_crop": None,
         })
+
+    if changes:
+        img_a, zoom_a = _render_page_image(doc_a)
+        img_b, zoom_b = _render_page_image(doc_b)
+        for change in changes:
+            if change["before"] is not None:
+                change["before"]["crop"] = _save_pdf_crop(img_a, change["before"]["bbox"], zoom_a)
+            if change["after"] is not None:
+                change["after"]["crop"] = _save_pdf_crop(img_b, change["after"]["bbox"], zoom_b)
 
     doc_a.close()
     doc_b.close()
