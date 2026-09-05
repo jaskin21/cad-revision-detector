@@ -2,6 +2,7 @@ import fitz  # pymupdf
 import os
 import uuid
 import io
+import base64
 from PIL import Image
 
 CROP_DIR = "temp_uploads/crops"
@@ -59,7 +60,6 @@ def _render_page_image(doc, dpi=150):
     img = Image.open(io.BytesIO(pix.tobytes("png")))
     return img, zoom
 
-
 def _save_pdf_crop(img, bbox, zoom, pad_px=40):
     x0, y0, x1, y1 = bbox
     px0 = max(int(x0 * zoom) - pad_px, 0)
@@ -67,10 +67,11 @@ def _save_pdf_crop(img, bbox, zoom, pad_px=40):
     px1 = min(int(x1 * zoom) + pad_px, img.width)
     py1 = min(int(y1 * zoom) + pad_px, img.height)
     crop = img.crop((px0, py0, px1, py1))
-    crop_id = uuid.uuid4().hex[:8]
-    crop_path = os.path.join(CROP_DIR, f"{crop_id}.png")
-    crop.save(crop_path)
-    return crop_path
+
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
 
 
 def diff_pdf_vector(path_a: str, path_b: str):

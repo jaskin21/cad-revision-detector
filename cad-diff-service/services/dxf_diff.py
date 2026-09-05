@@ -1,6 +1,7 @@
 import ezdxf
 from ezdxf.document import Drawing
 import os
+import base64
 import uuid
 from PIL import Image
 from ezdxf.bbox import extents
@@ -142,10 +143,11 @@ def _save_crop(image_path, center_x, center_y, extents_box, img_size, pad_px=80)
     x1 = min(int(px + pad_px), img.width)
     y1 = min(int(py + pad_px), img.height)
     crop = img.crop((x0, y0, x1, y1))
-    crop_id = uuid.uuid4().hex[:8]
-    crop_path = os.path.join(CROP_DIR, f"{crop_id}.png")
-    crop.save(crop_path)
-    return crop_path
+
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG")
+    encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
 
 
 def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):

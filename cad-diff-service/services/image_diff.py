@@ -2,12 +2,7 @@ import cv2
 import numpy as np
 from pdf2image import convert_from_path
 from skimage.metrics import structural_similarity as ssim
-import os
-import uuid
-
-
-CROP_DIR = "temp_uploads/crops"
-os.makedirs(CROP_DIR, exist_ok=True)
+import base64
 
 
 def _pdf_to_image(path: str, dpi: int = 150) -> np.ndarray:
@@ -30,10 +25,8 @@ def _find_change_regions(gray_a: np.ndarray, gray_b: np.ndarray, min_area: int =
     score, diff = ssim(gray_a, gray_b, full=True)
     diff = (diff * 255).astype("uint8")
 
-    # Threshold: areas with low similarity become white (255), rest black
     thresh = cv2.threshold(diff, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)[1]
 
-    # Dilate to merge nearby differing pixels into solid blobs
     kernel = np.ones((9, 9), np.uint8)
     dilated = cv2.dilate(thresh, kernel, iterations=2)
 
@@ -43,11 +36,18 @@ def _find_change_regions(gray_a: np.ndarray, gray_b: np.ndarray, min_area: int =
     for c in contours:
         area = cv2.contourArea(c)
         if area < min_area:
-            continue  # skip tiny noise
+            continue
         x, y, w, h = cv2.boundingRect(c)
         boxes.append((x, y, w, h))
 
     return boxes, score
+
+
+def _encode_crop(crop: np.ndarray) -> str:
+    """Encode an OpenCV image region as a base64 PNG data URL."""
+    _, buf = cv2.imencode(".png", crop)
+    encoded = base64.b64encode(buf).decode("utf-8")
+    return f"data:image/png;base64,{encoded}"
 
 
 def diff_images(path_a: str, path_b: str):
@@ -66,20 +66,17 @@ def diff_images(path_a: str, path_b: str):
         crop_before = img_a[y:y+h, x:x+w]
         crop_after = img_b[y:y+h, x:x+w]
 
-        crop_id = uuid.uuid4().hex[:8]
-        before_path = os.path.join(CROP_DIR, f"{crop_id}_before.png")
-        after_path = os.path.join(CROP_DIR, f"{crop_id}_after.png")
-        cv2.imwrite(before_path, crop_before)
-        cv2.imwrite(after_path, crop_after)
+        before_data_url = _encode_crop(crop_before)
+        after_data_url = _encode_crop(crop_after)
 
         changes.append({
             "type": "modified",  # can't distinguish added/removed/modified from pixels alone
             "entity": "region",
             "layer": None,
             "location": {"x": x + w / 2, "y": y + h / 2},
-            "before": {"crop": before_path, "bbox": [x, y, x + w, y + h]},
-            "after": {"crop": after_path, "bbox": [x, y, x + w, y + h]},
-            "region_crop": after_path,
+            "before": {"crop": before_data_url, "bbox": [x, y, x + w, y + h]},
+            "after": {"crop": after_data_url, "bbox": [x, y, x + w, y + h]},
+            "region_crop": after_data_url,
         })
 
     return {

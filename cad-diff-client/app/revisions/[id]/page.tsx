@@ -117,8 +117,63 @@ function ChangeCard({ change }: { change: Change }) {
               {change.before ? JSON.stringify(change.before, null, 2) : "—"}
             </pre>
           </div>
+          <div className="bg-[#fbf3f1] p-3">
+  <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
+  {change.before?.crop ? (
+    <img
+      src={change.before.crop as string}
+      alt="Before"
+      className="mt-2 max-h-48 rounded-sm border border-[#e4c9c2]"
+    />
+  ) : null}
+  <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
+    {change.before ? JSON.stringify(change.before, null, 2) : "—"}
+  </pre>
+</div>
+<div className="bg-[#eef6f0] p-3">
+  <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
+  {change.after?.crop ? (
+    <img
+      src={change.after.crop as string}
+      alt="After"
+      className="mt-2 max-h-48 rounded-sm border border-[#c9dfd0]"
+    />
+  ) : null}
+  <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
+    {change.after ? JSON.stringify(change.after, null, 2) : "—"}
+  </pre>
+</div>
           <div className="bg-[#eef6f0] p-3">
             <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
+            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
+              {change.after ? JSON.stringify(change.after, null, 2) : "—"}
+            </pre>
+          </div>
+        </div>
+      )}      {open && hasRaw && (
+        <div className="grid grid-cols-1 gap-px border-t border-[#d8dbd6] bg-[#d8dbd6] sm:grid-cols-2">
+          <div className="bg-[#fbf3f1] p-3">
+            <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
+            {change.before?.crop ? (
+              <img
+                src={change.before.crop as string}
+                alt="Before"
+                className="mt-2 max-h-48 rounded-sm border border-[#e4c9c2]"
+              />
+            ) : null}
+            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
+              {change.before ? JSON.stringify(change.before, null, 2) : "—"}
+            </pre>
+          </div>
+          <div className="bg-[#eef6f0] p-3">
+            <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
+            {change.after?.crop ? (
+              <img
+                src={change.after.crop as string}
+                alt="After"
+                className="mt-2 max-h-48 rounded-sm border border-[#c9dfd0]"
+              />
+            ) : null}
             <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
               {change.after ? JSON.stringify(change.after, null, 2) : "—"}
             </pre>
