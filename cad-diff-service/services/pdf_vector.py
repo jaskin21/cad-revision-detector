@@ -152,17 +152,18 @@ def diff_pdf_vector(path_a: str, path_b: str):
                 "region_crop": None,
             })
 
-        for a_key in added_keys - matched_added:
-            a_data = content_b[a_key]
-            changes.append({
-                "type": "added",
-                "entity": a_data["kind"],
-                "layer": None,
-                "location": _bbox_to_location(a_data["bbox"]),
-                "before": None,
-                "after": a_data,
-                "region_crop": None,
-            })
+    # dedented to 4 spaces — runs once, after the loop above finishes
+    for a_key in added_keys - matched_added:
+        a_data = content_b[a_key]
+        changes.append({
+            "type": "added",
+            "entity": a_data["kind"],
+            "layer": None,
+            "location": _bbox_to_location(a_data["bbox"]),
+            "before": None,
+            "after": a_data,
+            "region_crop": None,
+        })
 
     if changes:
         img_a, zoom_a = _render_page_image(doc_a)
