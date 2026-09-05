@@ -49,6 +49,12 @@ def _encode_crop(crop: np.ndarray) -> str:
     encoded = base64.b64encode(buf).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
+def _describe_location(x, y, page_width, page_height):
+    col = "left" if x < page_width / 3 else "right" if x > 2 * page_width / 3 else "center"
+    row = "top" if y < page_height / 3 else "bottom" if y > 2 * page_height / 3 else "middle"
+    if row == "middle" and col == "center":
+        return "center of the drawing"
+    return f"{row}-{col} area"
 
 def diff_images(path_a: str, path_b: str):
     img_a = _pdf_to_image(path_a)
@@ -70,7 +76,7 @@ def diff_images(path_a: str, path_b: str):
         after_data_url = _encode_crop(crop_after)
 
         changes.append({
-            "type": "modified",  # can't distinguish added/removed/modified from pixels alone
+            "type": "modified",
             "entity": "region",
             "layer": None,
             "location": {"x": x + w / 2, "y": y + h / 2},

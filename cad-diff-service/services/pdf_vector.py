@@ -73,6 +73,12 @@ def _save_pdf_crop(img, bbox, zoom, pad_px=40):
     encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
+def _describe_location(x, y, page_width, page_height):
+    col = "left" if x < page_width / 3 else "right" if x > 2 * page_width / 3 else "center"
+    row = "top" if y < page_height / 3 else "bottom" if y > 2 * page_height / 3 else "middle"
+    if row == "middle" and col == "center":
+        return "center of the page"
+    return f"{row}-{col} area"
 
 def diff_pdf_vector(path_a: str, path_b: str):
     doc_a = fitz.open(path_a)

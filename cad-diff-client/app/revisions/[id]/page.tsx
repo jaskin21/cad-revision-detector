@@ -11,6 +11,7 @@ type Change = {
   entity: string;
   layer: string | null;
   location: { x: number; y: number } | null;
+  location_label?: string | null;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
 };
@@ -56,10 +57,37 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function RawDataToggle({ change }: { change: Change }) {
+  const [showRaw, setShowRaw] = useState(false);
+  return (
+    <div className="col-span-full border-t border-[#d8dbd6] bg-white p-3">
+      <button
+        type="button"
+        onClick={() => setShowRaw((v) => !v)}
+        className="text-[11px] font-medium text-[#8a8f88] hover:text-[#5b6159]"
+      >
+        {showRaw ? "Hide" : "Show"} technical details
+      </button>
+      {showRaw && (
+        <div className="mt-2 grid grid-cols-1 gap-px bg-[#d8dbd6] sm:grid-cols-2">
+          <pre className="bg-[#fbf3f1] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
+            {change.before ? JSON.stringify(change.before, null, 2) : "—"}
+          </pre>
+          <pre className="bg-[#eef6f0] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
+            {change.after ? JSON.stringify(change.after, null, 2) : "—"}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChangeCard({ change }: { change: Change }) {
   const [open, setOpen] = useState(false);
   const style = TYPE_STYLE[change.type];
   const hasRaw = change.before || change.after;
+  const beforeCrop = (change.before as Record<string, unknown> | null)?.crop as string | undefined;
+  const afterCrop = (change.after as Record<string, unknown> | null)?.crop as string | undefined;
 
   return (
     <li className={`rounded-sm border border-[#d8dbd6] border-l-4 ${style.border} bg-white`}>
@@ -75,6 +103,9 @@ function ChangeCard({ change }: { change: Change }) {
             </p>
             {change.layer && (
               <p className="mt-0.5 font-mono text-[11px] text-[#8a8f88]">layer · {change.layer}</p>
+            )}
+            {change.location_label && (
+              <p className="mt-0.5 text-[11px] text-[#5b6159]">📍 {change.location_label}</p>
             )}
           </div>
           {change.location && (
@@ -104,7 +135,7 @@ function ChangeCard({ change }: { change: Change }) {
             >
               <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            Raw data
+            Details
           </button>
         )}
       </div>
@@ -113,71 +144,30 @@ function ChangeCard({ change }: { change: Change }) {
         <div className="grid grid-cols-1 gap-px border-t border-[#d8dbd6] bg-[#d8dbd6] sm:grid-cols-2">
           <div className="bg-[#fbf3f1] p-3">
             <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
-            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-              {change.before ? JSON.stringify(change.before, null, 2) : "—"}
-            </pre>
-          </div>
-          <div className="bg-[#fbf3f1] p-3">
-  <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
-  {change.before?.crop ? (
-    <img
-      src={change.before.crop as string}
-      alt="Before"
-      className="mt-2 max-h-48 rounded-sm border border-[#e4c9c2]"
-    />
-  ) : null}
-  <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-    {change.before ? JSON.stringify(change.before, null, 2) : "—"}
-  </pre>
-</div>
-<div className="bg-[#eef6f0] p-3">
-  <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
-  {change.after?.crop ? (
-    <img
-      src={change.after.crop as string}
-      alt="After"
-      className="mt-2 max-h-48 rounded-sm border border-[#c9dfd0]"
-    />
-  ) : null}
-  <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-    {change.after ? JSON.stringify(change.after, null, 2) : "—"}
-  </pre>
-</div>
-          <div className="bg-[#eef6f0] p-3">
-            <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
-            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-              {change.after ? JSON.stringify(change.after, null, 2) : "—"}
-            </pre>
-          </div>
-        </div>
-      )}      {open && hasRaw && (
-        <div className="grid grid-cols-1 gap-px border-t border-[#d8dbd6] bg-[#d8dbd6] sm:grid-cols-2">
-          <div className="bg-[#fbf3f1] p-3">
-            <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
-            {change.before?.crop ? (
+            {beforeCrop ? (
               <img
-                src={change.before.crop as string}
+                src={beforeCrop}
                 alt="Before"
-                className="mt-2 max-h-48 rounded-sm border border-[#e4c9c2]"
+                className="mt-2 w-full rounded-sm border border-[#e4c9c2]"
               />
-            ) : null}
-            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-              {change.before ? JSON.stringify(change.before, null, 2) : "—"}
-            </pre>
+            ) : (
+              <p className="mt-2 text-xs text-[#8a8f88]">No image available</p>
+            )}
           </div>
           <div className="bg-[#eef6f0] p-3">
             <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
-            {change.after?.crop ? (
+            {afterCrop ? (
               <img
-                src={change.after.crop as string}
+                src={afterCrop}
                 alt="After"
-                className="mt-2 max-h-48 rounded-sm border border-[#c9dfd0]"
+                className="mt-2 w-full rounded-sm border border-[#c9dfd0]"
               />
-            ) : null}
-            <pre className="mt-1.5 overflow-auto font-mono text-[11px] leading-relaxed text-[#1c2024]">
-              {change.after ? JSON.stringify(change.after, null, 2) : "—"}
-            </pre>
+            ) : (
+              <p className="mt-2 text-xs text-[#8a8f88]">No image available</p>
+            )}
           </div>
+
+          <RawDataToggle change={change} />
         </div>
       )}
     </li>
@@ -192,7 +182,6 @@ export default function RevisionResultsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | ChangeType>("all");
   const [query, setQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"easy" | "technical">("easy");
 
   useEffect(() => {
     let cancelled = false;
@@ -212,29 +201,17 @@ export default function RevisionResultsPage() {
     };
   }, [id]);
 
-    const modeChanges = useMemo(() => {
-    const all = revision?.changes ?? [];
-    if (viewMode === "easy") return all;
-
-    return all.flatMap((c) => {
-      if (c.type !== "modified") return [c];
-      return [
-        { ...c, type: "removed" as const, after: null },
-        { ...c, type: "added" as const, before: null },
-      ];
-    });
-  }, [revision, viewMode]);
-
   const counts = useMemo(() => {
     const base = { added: 0, removed: 0, modified: 0 };
-    modeChanges.forEach((c) => {
+    revision?.changes?.forEach((c) => {
       base[c.type] += 1;
     });
     return base;
-  }, [modeChanges]);
+  }, [revision]);
 
   const displayChanges = useMemo(() => {
-    return modeChanges.filter((c) => {
+    const all = revision?.changes ?? [];
+    return all.filter((c) => {
       if (filter !== "all" && c.type !== filter) return false;
       if (query.trim()) {
         const q = query.trim().toLowerCase();
@@ -243,8 +220,7 @@ export default function RevisionResultsPage() {
       }
       return true;
     });
-  }, [modeChanges, filter, query]);
-
+  }, [revision, filter, query]);
 
   if (loading) {
     return (
@@ -342,55 +318,29 @@ export default function RevisionResultsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-sm font-semibold text-[#1c2024]">Changes ({total})</h2>
 
-              <div className="flex items-center gap-3">
-                {/* Easy / Technical toggle */}
-                <div className="flex rounded-full border border-[#d8dbd6] bg-white p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("easy")}
-                    className={[
-                      "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                      viewMode === "easy" ? "bg-[#2a5c7a] text-white" : "text-[#5b6159] hover:text-[#1c2024]",
-                    ].join(" ")}
-                  >
-                    Easy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setViewMode("technical")}
-                    className={[
-                      "rounded-full px-3 py-1 text-xs font-medium transition-colors",
-                      viewMode === "technical" ? "bg-[#2a5c7a] text-white" : "text-[#5b6159] hover:text-[#1c2024]",
-                    ].join(" ")}
-                  >
-                    Technical
-                  </button>
+              {total > 0 && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {(["all", "added", "removed", "modified"] as const).map((key) => {
+                    const active = filter === key;
+                    const count = key === "all" ? total : counts[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setFilter(key)}
+                        className={[
+                          "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                          active
+                            ? "border-[#2a5c7a] bg-[#2a5c7a] text-white"
+                            : "border-[#d8dbd6] bg-white text-[#5b6159] hover:border-[#b8bcb4]",
+                        ].join(" ")}
+                      >
+                        {key === "all" ? "All" : TYPE_STYLE[key].label} · {count}
+                      </button>
+                    );
+                  })}
                 </div>
-
-                {total > 0 && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {(["all", "added", "removed", "modified"] as const).map((key) => {
-                      const active = filter === key;
-                      const count = key === "all" ? total : counts[key];
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setFilter(key)}
-                          className={[
-                            "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                            active
-                              ? "border-[#2a5c7a] bg-[#2a5c7a] text-white"
-                              : "border-[#d8dbd6] bg-white text-[#5b6159] hover:border-[#b8bcb4]",
-                          ].join(" ")}
-                        >
-                          {key === "all" ? "All" : TYPE_STYLE[key].label} · {count}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             {total > 0 && (

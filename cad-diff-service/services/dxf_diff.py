@@ -149,6 +149,15 @@ def _save_crop(image_path, center_x, center_y, extents_box, img_size, pad_px=80)
     encoded = base64.b64encode(buffer.getvalue()).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
+def _describe_location(x, y, extents_box):
+    xmin, ymin, xmax, ymax = extents_box
+    width = xmax - xmin
+    height = ymax - ymin
+    col = "left" if x < xmin + width / 3 else "right" if x > xmin + 2 * width / 3 else "center"
+    row = "top" if y > ymin + 2 * height / 3 else "bottom" if y < ymin + height / 3 else "middle"
+    if row == "middle" and col == "center":
+        return "center of the drawing"
+    return f"{row}-{col} area"
 
 def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
     doc_a = ezdxf.readfile(path_a)
