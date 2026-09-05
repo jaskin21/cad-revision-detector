@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { uploadFile } from "@/lib/storage";
 import { diffQueue } from "@/lib/queue";
 import { randomUUID } from "crypto";
+import { createRevisionRecord } from "@/lib/db";
 
 export async function POST(req: NextRequest) {
   const formData = await req.formData();
@@ -16,6 +17,8 @@ export async function POST(req: NextRequest) {
   const revisionId = randomUUID();
   const keyA = `${projectId}/${revisionId}/rev-a-${fileA.name}`;
   const keyB = `${projectId}/${revisionId}/rev-b-${fileB.name}`;
+  await createRevisionRecord(revisionId, projectId, keyA, keyB);
+  await diffQueue.add("diff-job", { revisionId, projectId, keyA, keyB });
 
   await uploadFile(keyA, Buffer.from(await fileA.arrayBuffer()), fileA.type);
   await uploadFile(keyB, Buffer.from(await fileB.arrayBuffer()), fileB.type);
