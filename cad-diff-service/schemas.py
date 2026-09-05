@@ -6,6 +6,8 @@ class Change(BaseModel):
     entity: str
     layer: Optional[str] = None
     location: Optional[dict] = None
+    location_label: Optional[str] = None      # <-- add this
+    description: Optional[str] = None         # <-- add this
     before: Optional[dict] = None
     after: Optional[dict] = None
     region_crop: Optional[str] = None

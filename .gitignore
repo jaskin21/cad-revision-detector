@@ -10,3 +10,4 @@ cad-diff-service/.env
 cad-revision-detector/node_modules/
 cad-revision-detector/.next/
 cad-revision-detector/.env.local
+.DS_Store
