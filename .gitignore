@@ -1,0 +1,12 @@
+# Python
+cad-diff-service/venv/
+cad-diff-service/__pycache__/
+cad-diff-service/**/__pycache__/
+cad-diff-service/*.pyc
+cad-diff-service/temp_uploads/
+cad-diff-service/.env
+
+# Node
+cad-revision-detector/node_modules/
+cad-revision-detector/.next/
+cad-revision-detector/.env.local
