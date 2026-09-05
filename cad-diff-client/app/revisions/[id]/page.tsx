@@ -59,6 +59,13 @@ function StatusBadge({ status }: { status: string }) {
 
 function RawDataToggle({ change }: { change: Change }) {
   const [showRaw, setShowRaw] = useState(false);
+
+  const stripCrop = (obj: Record<string, unknown> | null) => {
+    if (!obj) return obj;
+    const { crop, ...rest } = obj;
+    return rest;
+  };
+
   return (
     <div className="col-span-full border-t border-[#d8dbd6] bg-white p-3">
       <button
@@ -71,10 +78,10 @@ function RawDataToggle({ change }: { change: Change }) {
       {showRaw && (
         <div className="mt-2 grid grid-cols-1 gap-px bg-[#d8dbd6] sm:grid-cols-2">
           <pre className="bg-[#fbf3f1] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
-            {change.before ? JSON.stringify(change.before, null, 2) : "—"}
+            {change.before ? JSON.stringify(stripCrop(change.before), null, 2) : "—"}
           </pre>
           <pre className="bg-[#eef6f0] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
-            {change.after ? JSON.stringify(change.after, null, 2) : "—"}
+            {change.after ? JSON.stringify(stripCrop(change.after), null, 2) : "—"}
           </pre>
         </div>
       )}
