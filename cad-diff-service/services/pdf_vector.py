@@ -80,6 +80,25 @@ def _describe_location(x, y, page_width, page_height):
         return "center of the page"
     return f"{row}-{col} area"
 
+def _describe_change(change, page_width, page_height):
+    entity = change["entity"]
+    ctype = change["type"]
+    loc = change.get("location")
+    area = _describe_location(loc["x"], loc["y"], page_width, page_height) if loc else "an unknown area"
+
+    if ctype == "added":
+        return f"A new {entity} was added in the {area}."
+    if ctype == "removed":
+        return f"A {entity} was removed from the {area}."
+    if ctype == "modified":
+        if entity == "text":
+            before_txt = change["before"].get("text", "")
+            after_txt = change["after"].get("text", "")
+            if before_txt != after_txt:
+                return f"Text changed from \"{before_txt}\" to \"{after_txt}\" in the {area}."
+        return f"A {entity} was modified in the {area}."
+    return f"A {entity} changed in the {area}."
+
 def diff_pdf_vector(path_a: str, path_b: str):
     doc_a = fitz.open(path_a)
     doc_b = fitz.open(path_b)
@@ -133,7 +152,7 @@ def diff_pdf_vector(path_a: str, path_b: str):
                 "region_crop": None,
             })
 
-    for a_key in added_keys - matched_added:
+        for a_key in added_keys - matched_added:
         a_data = content_b[a_key]
         changes.append({
             "type": "added",
@@ -153,6 +172,12 @@ def diff_pdf_vector(path_a: str, path_b: str):
                 change["before"]["crop"] = _save_pdf_crop(img_a, change["before"]["bbox"], zoom_a)
             if change["after"] is not None:
                 change["after"]["crop"] = _save_pdf_crop(img_b, change["after"]["bbox"], zoom_b)
+
+            page = doc_b[0] if change["after"] is not None else doc_a[0]
+            loc = change.get("location")
+            if loc:
+                change["location_label"] = _describe_location(loc["x"], loc["y"], page.rect.width, page.rect.height)
+            change["description"] = _describe_change(change, page.rect.width, page.rect.height)
 
     doc_a.close()
     doc_b.close()

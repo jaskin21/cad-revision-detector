@@ -49,12 +49,14 @@ def _encode_crop(crop: np.ndarray) -> str:
     encoded = base64.b64encode(buf).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
+
 def _describe_location(x, y, page_width, page_height):
     col = "left" if x < page_width / 3 else "right" if x > 2 * page_width / 3 else "center"
     row = "top" if y < page_height / 3 else "bottom" if y > 2 * page_height / 3 else "middle"
     if row == "middle" and col == "center":
         return "center of the drawing"
     return f"{row}-{col} area"
+
 
 def diff_images(path_a: str, path_b: str):
     img_a = _pdf_to_image(path_a)
@@ -64,6 +66,8 @@ def diff_images(path_a: str, path_b: str):
 
     gray_a = cv2.cvtColor(img_a, cv2.COLOR_BGR2GRAY)
     gray_b = cv2.cvtColor(img_b, cv2.COLOR_BGR2GRAY)
+
+    page_h, page_w = gray_a.shape[:2]
 
     boxes, similarity_score = _find_change_regions(gray_a, gray_b)
 
@@ -75,11 +79,16 @@ def diff_images(path_a: str, path_b: str):
         before_data_url = _encode_crop(crop_before)
         after_data_url = _encode_crop(crop_after)
 
+        center_x, center_y = x + w / 2, y + h / 2
+        location_label = _describe_location(center_x, center_y, page_w, page_h)
+
         changes.append({
             "type": "modified",
             "entity": "region",
             "layer": None,
-            "location": {"x": x + w / 2, "y": y + h / 2},
+            "location": {"x": center_x, "y": center_y},
+            "location_label": location_label,
+            "description": f"A region was modified in the {location_label}.",
             "before": {"crop": before_data_url, "bbox": [x, y, x + w, y + h]},
             "after": {"crop": after_data_url, "bbox": [x, y, x + w, y + h]},
             "region_crop": after_data_url,

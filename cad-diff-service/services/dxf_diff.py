@@ -1,3 +1,4 @@
+import io
 import ezdxf
 from ezdxf.document import Drawing
 import os
@@ -60,7 +61,6 @@ def _extract_entities(doc: Drawing) -> dict:
 
     return entities
 
-
 def _entity_to_friendly_type(entity_data: dict) -> str:
     """Map raw DXF entity type to a more human-readable label."""
     type_map = {
@@ -73,7 +73,6 @@ def _entity_to_friendly_type(entity_data: dict) -> str:
         "INSERT": "block",
     }
     return type_map.get(entity_data["type"], entity_data["type"].lower())
-
 
 def _get_location(entity_data: dict):
     """Best-effort single representative x/y point for a change, used for UI click-to-zoom."""
@@ -91,13 +90,11 @@ def _get_location(entity_data: dict):
         return {"x": x, "y": y}
     return None
 
-
 def _get_extents(doc):
     bbox = extents(doc.modelspace())
     if not bbox.has_data:
         return (0.0, 0.0, 100.0, 100.0)
     return (bbox.extmin.x, bbox.extmin.y, bbox.extmax.x, bbox.extmax.y)
-
 
 def _render_dxf_image(doc, out_path):
     xmin, ymin, xmax, ymax = _get_extents(doc)
@@ -126,14 +123,12 @@ def _render_dxf_image(doc, out_path):
 
     return (xmin, ymin, xmax, ymax), (fig_w, fig_h)
 
-
 def _world_to_pixel(x, y, extents_box, img_size):
     xmin, ymin, xmax, ymax = extents_box
     img_w, img_h = img_size
     px = (x - xmin) / (xmax - xmin) * img_w
     py = img_h - (y - ymin) / (ymax - ymin) * img_h
     return px, py
-
 
 def _save_crop(image_path, center_x, center_y, extents_box, img_size, pad_px=80):
     img = Image.open(image_path)
@@ -158,6 +153,25 @@ def _describe_location(x, y, extents_box):
     if row == "middle" and col == "center":
         return "center of the drawing"
     return f"{row}-{col} area"
+
+def _describe_change(change, extents_box):
+    entity = change["entity"]
+    ctype = change["type"]
+    loc = change.get("location")
+    area = _describe_location(loc["x"], loc["y"], extents_box) if loc else "an unknown area"
+
+    if ctype == "added":
+        return f"A new {entity} was added in the {area}."
+    if ctype == "removed":
+        return f"A {entity} was removed from the {area}."
+    if ctype == "modified":
+        if entity == "text":
+            before_txt = change["before"].get("text", "")
+            after_txt = change["after"].get("text", "")
+            if before_txt != after_txt:
+                return f"Text changed from \"{before_txt}\" to \"{after_txt}\" in the {area}."
+        return f"A {entity} was modified in the {area}."
+    return f"A {entity} changed in the {area}."
 
 def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
     doc_a = ezdxf.readfile(path_a)
@@ -197,7 +211,7 @@ def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
             "region_crop": None,
         })
 
-    # Modified: present in both, but different
+        # Modified: present in both, but different
     for handle in handles_a & handles_b:
         data_a = entities_a[handle]
         data_b = entities_b[handle]
@@ -222,10 +236,13 @@ def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
             loc = change.get("location")
             if not loc:
                 continue
+            change["location_label"] = _describe_location(loc["x"], loc["y"], extents_b)
             if change["before"] is not None:
                 change["before"]["crop"] = _save_crop(img_a_path, loc["x"], loc["y"], extents_a, size_a)
             if change["after"] is not None:
                 change["after"]["crop"] = _save_crop(img_b_path, loc["x"], loc["y"], extents_b, size_b)
+
+            change["description"] = _describe_change(change, extents_b)
 
     return {
         "revision_a": path_a,
