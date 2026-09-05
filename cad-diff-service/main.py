@@ -3,6 +3,7 @@ from schemas import DiffResult
 from services.classify import classify_file
 from services.dxf_diff import diff_dxf
 from services.image_diff import diff_images
+from services.pdf_vector import diff_pdf_vector
 import shutil, uuid, os
 
 app = FastAPI()
@@ -25,8 +26,10 @@ async def diff(revision_a: UploadFile = File(...), revision_b: UploadFile = File
     type_a = classify_file(path_a)
     type_b = classify_file(path_b)
 
-    if type_a in ("dxf", "vector_pdf") and type_b in ("dxf", "vector_pdf"):
+    if type_a == "dxf" and type_b == "dxf":
         result = diff_dxf(path_a, path_b, type_a, type_b)
+    elif type_a == "vector_pdf" and type_b == "vector_pdf":
+        result = diff_pdf_vector(path_a, path_b)
     else:
         result = diff_images(path_a, path_b)
 
