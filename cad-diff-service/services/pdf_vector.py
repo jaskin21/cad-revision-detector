@@ -1,3 +1,49 @@
+import fitz  # pymupdf
+
+
+def _extract_page_content(doc) -> dict:
+    """Extract text blocks and drawing paths from page 1, keyed by a synthetic id."""
+    page = doc[0]
+    content = {}
+
+    text_blocks = page.get_text("dict")["blocks"]
+    for i, block in enumerate(text_blocks):
+        if block.get("type") == 0:
+            for line in block.get("lines", []):
+                for span in line.get("spans", []):
+                    key = f"text_{i}_{span['text'][:20]}_{round(span['bbox'][0])}_{round(span['bbox'][1])}"
+                    content[key] = {
+                        "kind": "text",
+                        "text": span["text"],
+                        "bbox": span["bbox"],
+                        "font": span.get("font"),
+                        "size": span.get("size"),
+                    }
+
+    drawings = page.get_drawings()
+    for i, path in enumerate(drawings):
+        rect = path["rect"]
+        key = f"path_{i}_{round(rect.x0)}_{round(rect.y0)}"
+        content[key] = {
+            "kind": "path",
+            "bbox": [rect.x0, rect.y0, rect.x1, rect.y1],
+            "type": path.get("type"),
+        }
+
+    return content
+
+
+def _bbox_distance(bbox1, bbox2):
+    x1, y1 = (bbox1[0] + bbox1[2]) / 2, (bbox1[1] + bbox1[3]) / 2
+    x2, y2 = (bbox2[0] + bbox2[2]) / 2, (bbox2[1] + bbox2[3]) / 2
+    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+
+
+def _bbox_to_location(bbox):
+    x0, y0, x1, y1 = bbox
+    return {"x": (x0 + x1) / 2, "y": (y0 + y1) / 2}
+
+
 def diff_pdf_vector(path_a: str, path_b: str):
     doc_a = fitz.open(path_a)
     doc_b = fitz.open(path_b)
@@ -14,7 +60,6 @@ def diff_pdf_vector(path_a: str, path_b: str):
     changes = []
     matched_added = set()
 
-    # Try to reconcile removed+added pairs that sit at nearly the same position
     for r_key in removed_keys:
         r_data = content_a[r_key]
         best_match = None
@@ -25,13 +70,13 @@ def diff_pdf_vector(path_a: str, path_b: str):
             if a_data["kind"] != r_data["kind"]:
                 continue
             dist = _bbox_distance(r_data["bbox"], a_data["bbox"])
-            if dist < 5 and (best_dist is None or dist < best_dist):  # 5pt tolerance
+            if dist < 5 and (best_dist is None or dist < best_dist):
                 best_match = a_key
                 best_dist = dist
 
         if best_match:
             a_data = content_b[best_match]
-           changes.append({
+            changes.append({
                 "type": "modified",
                 "entity": r_data["kind"],
                 "layer": None,
@@ -52,7 +97,6 @@ def diff_pdf_vector(path_a: str, path_b: str):
                 "region_crop": None,
             })
 
-    # Anything added that wasn't matched to a removal is a genuine addition
     for a_key in added_keys - matched_added:
         a_data = content_b[a_key]
         changes.append({
@@ -74,9 +118,3 @@ def diff_pdf_vector(path_a: str, path_b: str):
         "confidence": "exact",
         "changes": changes,
     }
-
-
-def _bbox_distance(bbox1, bbox2):
-    x1, y1 = (bbox1[0] + bbox1[2]) / 2, (bbox1[1] + bbox1[3]) / 2
-    x2, y2 = (bbox2[0] + bbox2[2]) / 2, (bbox2[1] + bbox2[3]) / 2
-    return ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
