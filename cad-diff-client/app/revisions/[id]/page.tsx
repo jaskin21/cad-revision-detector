@@ -22,20 +22,46 @@ type Revision = {
   status: string;
   confidence: string | null;
   changes: Change[] | null;
+  redline_pdf: string | null; // base64 data URL from the diff service
   error: string | null;
   created_at: string;
   completed_at: string | null;
 };
 
-const TYPE_STYLE: Record<ChangeType, { border: string; dot: string; text: string; label: string }> = {
-  added: { border: "border-l-[#3f7d53]", dot: "bg-[#3f7d53]", text: "text-[#2f6b46]", label: "Added" },
-  removed: { border: "border-l-[#b1493c]", dot: "bg-[#b1493c]", text: "text-[#8a3428]", label: "Removed" },
-  modified: { border: "border-l-[#b4842a]", dot: "bg-[#b4842a]", text: "text-[#8a611f]", label: "Modified" },
+const TYPE_STYLE: Record<
+  ChangeType,
+  { border: string; dot: string; text: string; label: string }
+> = {
+  added: {
+    border: "border-l-[#3f7d53]",
+    dot: "bg-[#3f7d53]",
+    text: "text-[#2f6b46]",
+    label: "Added",
+  },
+  removed: {
+    border: "border-l-[#b1493c]",
+    dot: "bg-[#b1493c]",
+    text: "text-[#8a3428]",
+    label: "Removed",
+  },
+  modified: {
+    border: "border-l-[#b4842a]",
+    dot: "bg-[#b4842a]",
+    text: "text-[#8a611f]",
+    label: "Modified",
+  },
 };
 
-const STATUS_STYLE: Record<string, { bg: string; text: string; label: string }> = {
+const STATUS_STYLE: Record<
+  string,
+  { bg: string; text: string; label: string }
+> = {
   queued: { bg: "bg-[#eceae3]", text: "text-[#5b6159]", label: "Queued" },
-  processing: { bg: "bg-[#e4edf1]", text: "text-[#2a5c7a]", label: "Processing" },
+  processing: {
+    bg: "bg-[#e4edf1]",
+    text: "text-[#2a5c7a]",
+    label: "Processing",
+  },
   completed: { bg: "bg-[#e9f3ec]", text: "text-[#2f6b46]", label: "Completed" },
   failed: { bg: "bg-[#fbf3f1]", text: "text-[#8a3428]", label: "Failed" },
 };
@@ -49,9 +75,15 @@ function formatDate(iso: string | null) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const s = STATUS_STYLE[status] ?? { bg: "bg-[#eceae3]", text: "text-[#5b6159]", label: status };
+  const s = STATUS_STYLE[status] ?? {
+    bg: "bg-[#eceae3]",
+    text: "text-[#5b6159]",
+    label: status,
+  };
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}>
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${s.bg} ${s.text}`}
+    >
       {s.label}
     </span>
   );
@@ -78,10 +110,14 @@ function RawDataToggle({ change }: { change: Change }) {
       {showRaw && (
         <div className="mt-2 grid grid-cols-1 gap-px bg-[#d8dbd6] sm:grid-cols-2">
           <pre className="bg-[#fbf3f1] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
-            {change.before ? JSON.stringify(stripCrop(change.before), null, 2) : "—"}
+            {change.before
+              ? JSON.stringify(stripCrop(change.before), null, 2)
+              : "—"}
           </pre>
           <pre className="bg-[#eef6f0] p-2 overflow-auto font-mono text-[10px] leading-relaxed text-[#1c2024]">
-            {change.after ? JSON.stringify(stripCrop(change.after), null, 2) : "—"}
+            {change.after
+              ? JSON.stringify(stripCrop(change.after), null, 2)
+              : "—"}
           </pre>
         </div>
       )}
@@ -93,33 +129,51 @@ function ChangeCard({ change }: { change: Change }) {
   const [open, setOpen] = useState(false);
   const style = TYPE_STYLE[change.type];
   const hasRaw = change.before || change.after;
-  const beforeCrop = (change.before as Record<string, unknown> | null)?.crop as string | undefined;
-  const afterCrop = (change.after as Record<string, unknown> | null)?.crop as string | undefined;
+  const beforeCrop = (change.before as Record<string, unknown> | null)?.crop as
+    | string
+    | undefined;
+  const afterCrop = (change.after as Record<string, unknown> | null)?.crop as
+    | string
+    | undefined;
 
   return (
-    <li className={`rounded-sm border border-[#d8dbd6] border-l-4 ${style.border} bg-white`}>
+    <li
+      className={`rounded-sm border border-[#d8dbd6] border-l-4 ${style.border} bg-white`}
+    >
       <div className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />
-              <span className={`font-mono text-[11px] uppercase tracking-wide ${style.text}`}>{style.label}</span>
+              <span
+                className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`}
+              />
+              <span
+                className={`font-mono text-[11px] uppercase tracking-wide ${style.text}`}
+              >
+                {style.label}
+              </span>
             </div>
-            <p className="mt-1 truncate text-sm text-[#1c2024]" title={change.entity}>
+            <p
+              className="mt-1 truncate text-sm text-[#1c2024]"
+              title={change.entity}
+            >
               {change.entity}
             </p>
             {change.layer && (
-              <p className="mt-0.5 font-mono text-[11px] text-[#8a8f88]">layer · {change.layer}</p>
+              <p className="mt-0.5 font-mono text-[11px] text-[#8a8f88]">
+                layer · {change.layer}
+              </p>
             )}
             {change.location_label && (
-              <p className="mt-0.5 text-[11px] text-[#5b6159]">📍 {change.location_label}</p>
+              <p className="mt-0.5 text-[11px] text-[#5b6159]">
+                📍 {change.location_label}
+              </p>
             )}
           </div>
           {change.location && (
             <p className="shrink-0 font-mono text-[11px] text-[#8a8f88] tabular-nums">
               x {change.location.x.toFixed(2)}
-              <br />
-              y {change.location.y.toFixed(2)}
+              <br />y {change.location.y.toFixed(2)}
             </p>
           )}
         </div>
@@ -140,7 +194,11 @@ function ChangeCard({ change }: { change: Change }) {
               strokeWidth="3"
               className={`transition-transform ${open ? "rotate-90" : ""}`}
             >
-              <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M9 6l6 6-6 6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
             Details
           </button>
@@ -150,7 +208,9 @@ function ChangeCard({ change }: { change: Change }) {
       {open && hasRaw && (
         <div className="grid grid-cols-1 gap-px border-t border-[#d8dbd6] bg-[#d8dbd6] sm:grid-cols-2">
           <div className="bg-[#fbf3f1] p-3">
-            <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">Before</p>
+            <p className="font-mono text-[10px] uppercase tracking-wide text-[#8a3428]">
+              Before
+            </p>
             {beforeCrop ? (
               <img
                 src={beforeCrop}
@@ -162,7 +222,9 @@ function ChangeCard({ change }: { change: Change }) {
             )}
           </div>
           <div className="bg-[#eef6f0] p-3">
-            <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">After</p>
+            <p className="font-mono text-[10px] uppercase tracking-wide text-[#2f6b46]">
+              After
+            </p>
             {afterCrop ? (
               <img
                 src={afterCrop}
@@ -249,7 +311,9 @@ export default function RevisionResultsPage() {
     return (
       <main className="min-h-screen bg-[#f6f5f1] px-4 py-10">
         <div className="mx-auto max-w-[720px] rounded-sm border border-[#d8dbd6] bg-white p-6 text-center">
-          <p className="text-sm text-[#5b6159]">No revision found for this ID.</p>
+          <p className="text-sm text-[#5b6159]">
+            No revision found for this ID.
+          </p>
         </div>
       </main>
     );
@@ -264,11 +328,26 @@ export default function RevisionResultsPage() {
         <div className="rounded-sm border border-[#d8dbd6] bg-white p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-wide text-[#8a8f88]">Rev {revision.id}</p>
-              <h1 className="mt-0.5 text-[22px] font-semibold tracking-tight">{revision.project_id}</h1>
+              <p className="font-mono text-[11px] uppercase tracking-wide text-[#8a8f88]">
+                Rev {revision.id}
+              </p>
+              <h1 className="mt-0.5 text-[22px] font-semibold tracking-tight">
+                {revision.project_id}
+              </h1>
             </div>
             <div className="flex items-center gap-3">
               <StatusBadge status={revision.status} />
+
+              {revision.redline_pdf && (
+                <a
+                  href={revision.redline_pdf}
+                  download={`${revision.project_id}-redline.pdf`}
+                  className="rounded-full border border-[#d8dbd6] bg-white px-3 py-1 text-xs font-medium text-[#2a5c7a] hover:border-[#b8bcb4]"
+                >
+                  Download redline ↓
+                </a>
+              )}
+
               <Link
                 href="/"
                 className="rounded-full border border-[#d8dbd6] bg-white px-3 py-1 text-xs font-medium text-[#5b6159] hover:border-[#b8bcb4]"
@@ -280,19 +359,33 @@ export default function RevisionResultsPage() {
 
           <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-[#eceae3] pt-4 sm:grid-cols-4">
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">Confidence</dt>
-              <dd className="mt-0.5 text-sm text-[#1c2024]">{revision.confidence ?? "—"}</dd>
+              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">
+                Confidence
+              </dt>
+              <dd className="mt-0.5 text-sm text-[#1c2024]">
+                {revision.confidence ?? "—"}
+              </dd>
             </div>
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">Started</dt>
-              <dd className="mt-0.5 text-sm text-[#1c2024]">{formatDate(revision.created_at)}</dd>
+              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">
+                Started
+              </dt>
+              <dd className="mt-0.5 text-sm text-[#1c2024]">
+                {formatDate(revision.created_at)}
+              </dd>
             </div>
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">Completed</dt>
-              <dd className="mt-0.5 text-sm text-[#1c2024]">{formatDate(revision.completed_at)}</dd>
+              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">
+                Completed
+              </dt>
+              <dd className="mt-0.5 text-sm text-[#1c2024]">
+                {formatDate(revision.completed_at)}
+              </dd>
             </div>
             <div>
-              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">Changes</dt>
+              <dt className="font-mono text-[10px] uppercase tracking-wide text-[#8a8f88]">
+                Changes
+              </dt>
               <dd className="mt-0.5 text-sm text-[#1c2024]">{total}</dd>
             </div>
           </dl>
@@ -312,8 +405,12 @@ export default function RevisionResultsPage() {
                 <path d="M12 8v5M12 16h.01" strokeLinecap="round" />
               </svg>
               <div>
-                <p className="text-sm font-medium text-[#8a3428]">Comparison failed</p>
-                <p className="mt-0.5 text-sm text-[#8a3428]/80">{revision.error}</p>
+                <p className="text-sm font-medium text-[#8a3428]">
+                  Comparison failed
+                </p>
+                <p className="mt-0.5 text-sm text-[#8a3428]/80">
+                  {revision.error}
+                </p>
               </div>
             </div>
           )}
@@ -323,29 +420,34 @@ export default function RevisionResultsPage() {
         {revision.changes && (
           <div className="mt-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-[#1c2024]">Changes ({total})</h2>
+              <h2 className="text-sm font-semibold text-[#1c2024]">
+                Changes ({total})
+              </h2>
 
               {total > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
-                  {(["all", "added", "removed", "modified"] as const).map((key) => {
-                    const active = filter === key;
-                    const count = key === "all" ? total : counts[key];
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => setFilter(key)}
-                        className={[
-                          "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
-                          active
-                            ? "border-[#2a5c7a] bg-[#2a5c7a] text-white"
-                            : "border-[#d8dbd6] bg-white text-[#5b6159] hover:border-[#b8bcb4]",
-                        ].join(" ")}
-                      >
-                        {key === "all" ? "All" : TYPE_STYLE[key].label} · {count}
-                      </button>
-                    );
-                  })}
+                  {(["all", "added", "removed", "modified"] as const).map(
+                    (key) => {
+                      const active = filter === key;
+                      const count = key === "all" ? total : counts[key];
+                      return (
+                        <button
+                          key={key}
+                          type="button"
+                          onClick={() => setFilter(key)}
+                          className={[
+                            "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                            active
+                              ? "border-[#2a5c7a] bg-[#2a5c7a] text-white"
+                              : "border-[#d8dbd6] bg-white text-[#5b6159] hover:border-[#b8bcb4]",
+                          ].join(" ")}
+                        >
+                          {key === "all" ? "All" : TYPE_STYLE[key].label} ·{" "}
+                          {count}
+                        </button>
+                      );
+                    },
+                  )}
                 </div>
               )}
             </div>
@@ -362,11 +464,15 @@ export default function RevisionResultsPage() {
             <div className="mt-4">
               {total === 0 ? (
                 <div className="rounded-sm border border-dashed border-[#d8dbd6] bg-white p-8 text-center">
-                  <p className="text-sm text-[#5b6159]">No changes detected between the two revisions.</p>
+                  <p className="text-sm text-[#5b6159]">
+                    No changes detected between the two revisions.
+                  </p>
                 </div>
               ) : displayChanges.length === 0 ? (
                 <div className="rounded-sm border border-dashed border-[#d8dbd6] bg-white p-8 text-center">
-                  <p className="text-sm text-[#5b6159]">No changes match this filter.</p>
+                  <p className="text-sm text-[#5b6159]">
+                    No changes match this filter.
+                  </p>
                 </div>
               ) : (
                 <ul className="flex flex-col gap-2.5">

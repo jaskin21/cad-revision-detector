@@ -100,6 +100,9 @@ def _describe_change(change, page_width, page_height):
     return f"A {entity} changed in the {area}."
 
 def diff_pdf_vector(path_a: str, path_b: str):
+    """Returns (result_dict, base_image_b) — base_image_b is a PIL Image of
+    the full revision-B page render (None if there were no changes), used by
+    services/redline.py to build the markup PDF."""
     doc_a = fitz.open(path_a)
     doc_b = fitz.open(path_b)
 
@@ -165,9 +168,11 @@ def diff_pdf_vector(path_a: str, path_b: str):
             "region_crop": None,
         })
 
+    base_image_b = None
     if changes:
         img_a, zoom_a = _render_page_image(doc_a)
         img_b, zoom_b = _render_page_image(doc_b)
+        base_image_b = img_b
         for change in changes:
             if change["before"] is not None:
                 change["before"]["crop"] = _save_pdf_crop(img_a, change["before"]["bbox"], zoom_a)
@@ -180,6 +185,14 @@ def diff_pdf_vector(path_a: str, path_b: str):
                 change["location_label"] = _describe_location(loc["x"], loc["y"], page.rect.width, page.rect.height)
             change["description"] = _describe_change(change, page.rect.width, page.rect.height)
 
+            # Redline overlay is always drawn on revision B's render, so
+            # convert whichever bbox we have (before/after are in PDF point
+            # space) to pixel space with zoom_b — zoom is a fixed dpi/72
+            # constant, not derived from page size, so it's the same value
+            # used for both revisions and this conversion is always valid.
+            src_bbox = (change["after"] or change["before"])["bbox"]
+            change["redline_bbox"] = [coord * zoom_b for coord in src_bbox]
+
     doc_a.close()
     doc_b.close()
 
@@ -188,4 +201,4 @@ def diff_pdf_vector(path_a: str, path_b: str):
         "revision_b": path_b,
         "confidence": "exact",
         "changes": changes,
-    }
+    }, base_image_b

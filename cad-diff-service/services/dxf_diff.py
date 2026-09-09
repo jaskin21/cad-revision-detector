@@ -15,6 +15,10 @@ import matplotlib.pyplot as plt
 CROP_DIR = "temp_uploads/crops"
 os.makedirs(CROP_DIR, exist_ok=True)
 IMG_LONG_SIDE = 1600
+# DXF changes only carry a representative world point (not a real bbox), so
+# the redline box is a fixed-radius square around that point once projected
+# to pixel space.
+REDLINE_POINT_RADIUS_PX = 45
 
 
 def _extract_entities(doc: Drawing) -> dict:
@@ -121,7 +125,17 @@ def _render_dxf_image(doc, out_path):
     fig.savefig(out_path, dpi=dpi)
     plt.close(fig)
 
-    return (xmin, ymin, xmax, ymax), (fig_w, fig_h)
+    # NOTE: fig_w/fig_h is what we *asked* matplotlib for, but ezdxf's
+    # Frontend.finalize() can adjust the figure/axes internally (e.g. to fit
+    # a page/viewport), so the PNG matplotlib actually writes can come out a
+    # different pixel size than requested. Every downstream pixel-space
+    # calculation (crops, redline boxes) depends on this size being right,
+    # so read it back from the file we just wrote instead of trusting the
+    # requested figsize.
+    with Image.open(out_path) as saved:
+        actual_size = saved.size
+
+    return (xmin, ymin, xmax, ymax), actual_size
 
 def _world_to_pixel(x, y, extents_box, img_size):
     xmin, ymin, xmax, ymax = extents_box
@@ -174,6 +188,9 @@ def _describe_change(change, extents_box):
     return f"A {entity} changed in the {area}."
 
 def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
+    """Returns (result_dict, base_image_b) — base_image_b is a PIL Image of
+    the full revision-B render (None if there were no changes), used by
+    services/redline.py to build the markup PDF."""
     doc_a = ezdxf.readfile(path_a)
     doc_b = ezdxf.readfile(path_b)
 
@@ -226,11 +243,13 @@ def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
                 "region_crop": None,
             })
 
+    base_image_b = None
     if changes:
         img_a_path = os.path.join(CROP_DIR, f"full_a_{uuid.uuid4().hex[:8]}.png")
         img_b_path = os.path.join(CROP_DIR, f"full_b_{uuid.uuid4().hex[:8]}.png")
         extents_a, size_a = _render_dxf_image(doc_a, img_a_path)
         extents_b, size_b = _render_dxf_image(doc_b, img_b_path)
+        base_image_b = Image.open(img_b_path)
 
         for change in changes:
             loc = change.get("location")
@@ -244,9 +263,20 @@ def diff_dxf(path_a: str, path_b: str, type_a: str, type_b: str):
 
             change["description"] = _describe_change(change, extents_b)
 
+            # Redline overlay is drawn on revision B's render, so project this
+            # change's world point through extents_b/size_b (the same
+            # transform used for B's crops) into a fixed-radius pixel box.
+            # World coordinates are absolute, so this holds even for
+            # "removed" entities that no longer exist in B's geometry —
+            # though if the drawing's bounding box shifted a lot between
+            # revisions, this projection becomes an approximation.
+            px, py = _world_to_pixel(loc["x"], loc["y"], extents_b, size_b)
+            r = REDLINE_POINT_RADIUS_PX
+            change["redline_bbox"] = [px - r, py - r, px + r, py + r]
+
     return {
         "revision_a": path_a,
         "revision_b": path_b,
         "confidence": "exact",
         "changes": changes,
-    }
+    }, base_image_b
